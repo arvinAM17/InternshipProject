@@ -5,18 +5,20 @@ library(igraph)
 library(sf)
 library(shp2graph)
 
-k_best_paths <- function(graph=NULL, start_node = NULL, end_node=NULL, k=3, count_stations=FALSE, check_junctions=FALSE){
+k_best_paths <- function(graph=NULL, start_node = NULL, end_node=NULL, k=3, count_stations=FALSE, check_junctions=FALSE, lines = NULL){
   if (count_stations){
-    return(k_smallest_paths(graph, start_node, end_node, k, check_junctions))
+    return(k_smallest_paths(graph, start_node, end_node, k, check_junctions, lines = lines))
   }
   paths = list()
   count = list()
   temp_paths = list()
   junctions = list()
-  for (node in V(graph)){
-    count[[node]] = 0
-    if (length(neighbors(graph, node, mode = "all")) > 2){
-      junctions <- append(junctions, list(node))
+  if (check_junctions){
+    for (node in V(graph)){
+      count[[node]] = 0
+      if (length(neighbors(graph, node, mode = "all")) > 2){
+        junctions <- append(junctions, list(node))
+      }
     }
   }
   temp_paths = list(list(c(start_node), 0))
@@ -46,22 +48,37 @@ k_best_paths <- function(graph=NULL, start_node = NULL, end_node=NULL, k=3, coun
           next
         }
         temp_p <- append(current_path, node)
-        temp_paths <- append(temp_paths, list(list(temp_p, min_length + graph[u, node])))
+        temp_cost <- min_length + graph[u, node]
+        if (check_junctions && u %in% junctions && length(current_path) > 1){
+          if (lines[u, node] != lines[current_path[[length(current_path) - 1]], u]){
+            temp_prev <- 0
+            for (neigh in neighbors(graph, u)){
+              if (lines[neigh, u] == lines[u, node]){
+                temp_prev <- neigh
+              }
+            }
+            if (temp_prev != 0){
+              temp_cost <- temp_cost + graph[temp_prev, u] / 2
+            }
+          }
+        }
+        temp_paths <- append(temp_paths, list(list(temp_p, temp_cost)))
       }
     }
   }
-  
   return(paths)
 }
 
 
-k_smallest_paths <- function(graph, start_node, end_node, k, check_junctions){
+k_smallest_paths <- function(graph, start_node, end_node, k, check_junctions, lines = NULL){
   paths = list()
   temp_paths = list()
   junctions = list()
-  for (node in V(graph)){
-    if (length(neighbors(graph, node, mode = "all")) > 2){
-      junctions <- append(junctions, list(node))
+  if(check_junctions){
+    for (node in V(graph)){
+      if (length(neighbors(graph, node, mode = "all")) > 2){
+        junctions <- append(junctions, list(node))
+      }
     }
   }
   temp_paths = list(list(c(start_node), 0, 0))
@@ -73,7 +90,21 @@ k_smallest_paths <- function(graph, start_node, end_node, k, check_junctions){
         if (nei %in% path[[1]]){
           next
         }
-        new_path <- list(c(path[[1]], nei), path[[2]] + graph[last_node, nei], path[[3]] + 1)
+        temp_cost <- path[[2]] + graph[last_node, nei]
+        if (check_junctions && last_node %in% junctions && length(path[[1]]) > 1){
+          if (lines[last_node, nei] != lines[current_path[[length(path[[1]]) - 1]], last_node]){
+            temp_prev <- 0
+            for (neigh in neighbors(graph, last_node)){
+              if (lines[neigh, last_node] == lines[last_node, nei]){
+                temp_prev <- neigh
+              }
+            }
+            if (temp_prev != 0){
+              temp_cost <- temp_cost + graph[temp_prev, last_node] / 2
+            }
+          }
+        }
+        new_path <- list(c(path[[1]], nei), temp_cost, path[[3]] + 1)
         temp_temp_paths <- append(temp_temp_paths, list(new_path))
       }
     }
@@ -93,7 +124,7 @@ k_smallest_paths <- function(graph, start_node, end_node, k, check_junctions){
     temp_temp_paths <- temp_temp_paths[order(temp_indices)]
     if (length(temp_temp_paths) + length(paths) > k){
       temp_len <- length(paths)
-      for (i in 1:k - temp_len){
+      for (i in 1:(k - temp_len)){
         paths <- append(paths, list(temp_temp_paths[[i]][[1]]))
       }
     } else {
