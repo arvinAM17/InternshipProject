@@ -8,15 +8,18 @@ library(shp2graph)
 get_next_hops <- function(graph=NULL){
   next_hops <- list()
   dist <- list()
+  paths <- list()
   for (node in V(graph)){
-    dist[[node]] = list()
-    next_hops[[node]] = list()
+    dist[[node]] <- list()
+    next_hops[[node]] <- list()
+    paths[[node]] <- list()
     for (nei in V(graph)){
       if (node == nei){
         dist[[node]][[nei]] <- 0
         next_hops[[node]][[nei]] <- nei
       } else if (graph[node, nei] == 0){
         dist[[node]][[nei]] <- Inf
+        next_hops[[node]][[nei]] <- 0
       } else {
         dist[[node]][[nei]] <- graph[node, nei]
         next_hops[[node]][[nei]] <- nei
@@ -33,12 +36,17 @@ get_next_hops <- function(graph=NULL){
       }
     }
   }
- return(next_hops)
+  for (i in V(graph)){
+    for (j in V(graph)){
+      paths[[i]][[j]] <- get_path_from_hops(graph = graph, next_hops = next_hops, start_node = i, end_node = j)
+    }
+  }
+  return(paths)
 }
 
 
 get_path_from_hops <- function(graph=NULL, next_hops=NULL, start_node, end_node){
-  if (is.null(next_hops[[start_node]][[end_node]])){
+  if (next_hops[[start_node]][[end_node]] == 0){
     return(list())
   }
   path <- list()
