@@ -13,12 +13,10 @@ k_best_paths <- function(graph=NULL, start_node = NULL, end_node=NULL, k=3, coun
   count = list()
   temp_paths = list()
   junctions = list()
-  if (check_junctions){
-    for (node in V(graph)){
-      count[[node]] = 0
-      if (length(neighbors(graph, node, mode = "all")) > 2){
-        junctions <- append(junctions, list(node))
-      }
+  for (node in V(graph)){
+    count[[node]] = 0
+    if (length(neighbors(graph, node, mode = "all")) > 2){
+      junctions <- append(junctions, list(node))
     }
   }
   temp_paths = list(list(c(start_node), 0))
